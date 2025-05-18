@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DBFirstApproach.API", "DBFirstApproach.API\DBFirstApproach.API.csproj", "{5774C50E-F8CE-4871-800B-288E79F4AD50}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DBFirstApproach.API", "src\DBFirstApproach.API\DBFirstApproach.API.csproj", "{5774C50E-F8CE-4871-800B-288E79F4AD50}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

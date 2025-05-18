@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DBFirstApproach.API;
+using DBFirstApproach.API.DTOs;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,7 +21,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-//Get all devices, which returns: ID and Name
 app.MapGet("/api/devices", async (DeviceContext db) =>
 {
     try
@@ -30,14 +30,12 @@ app.MapGet("/api/devices", async (DeviceContext db) =>
             .ToListAsync();
         return Results.Ok(devices);
     }
-    catch
+    catch(Exception ex)
     {
-        return Results.BadRequest();
+        return Results.Problem($"Loading devices FAILED: {ex.Message}");
     }
 });
 
-//Get device by ID, which returns: §Device type name, §Is device enabled,
-//§Additional properties (in JSON response, it must have object type)
 app.MapGet("/api/devices/{id}", async (DeviceContext db, int id) =>
 {
     try
@@ -53,14 +51,15 @@ app.MapGet("/api/devices/{id}", async (DeviceContext db, int id) =>
         var currentUser = await db.DeviceEmployees
             .Include(de => de.Employee)
             .Include(de => de.Employee.Person)
-            .FirstOrDefaultAsync(de => de.Id == id && de.ReturnDate == null);
+            .FirstOrDefaultAsync(de => de.DeviceId == id && de.ReturnDate == null);
 
         var employee = currentUser != null
             ? new
             {
                 id = currentUser.Employee.Id,
-                name = $"{currentUser.Employee.Person.FirstName} {currentUser.Employee.Person.MiddleName} {currentUser.Employee.Person.LastName}"
-            } 
+                name =
+                    $"{currentUser.Employee.Person.FirstName} {currentUser.Employee.Person.MiddleName} {currentUser.Employee.Person.LastName}"
+            }
             : null;
 
         object additionalProps;
@@ -85,7 +84,141 @@ app.MapGet("/api/devices/{id}", async (DeviceContext db, int id) =>
     }
     catch (Exception ex)
     {
-        return Results.BadRequest(ex.Message);
+        return Results.Problem($"Loading SPECIFIC device FAILED: {ex.Message}");
     }
 });
+
+app.MapPost("/api/devices", async (DeviceCreationAndUpdateDto dto, DeviceContext dbContext) =>
+{
+    try
+    {
+        var type = await dbContext.DeviceTypes
+            .FirstOrDefaultAsync(t => t.Name == dto.DeviceTypeName);
+
+        if (type == null)
+            return Results.BadRequest($"Device type '{dto.DeviceTypeName}' not EXIST.");
+
+        var newDevice = new Device
+        {
+            Name = dto.Name,
+            IsEnabled = dto.IsEnabled,
+            AdditionalProperties = dto.AdditionalProperties,
+            DeviceTypeId = type.Id
+        };
+
+        await dbContext.Devices.AddAsync(newDevice);
+        await dbContext.SaveChangesAsync();
+
+        return Results.Created();
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(ex.Message);
+    }
+});
+
+app.MapPut("/api/devices/{id}", async (int id, DeviceCreationAndUpdateDto dto, DeviceContext dbContext) =>
+{
+    try
+    {
+        var device = await dbContext.Devices.FindAsync(id);
+
+        if (device == null)
+            return Results.NotFound($"Device with ID {id} not found.");
+
+        var type = await dbContext.DeviceTypes
+            .FirstOrDefaultAsync(t => t.Name == dto.DeviceTypeName);
+
+        if (type == null)
+            return Results.BadRequest($"Device type '{dto.DeviceTypeName}' not EXIST.");
+
+        device.Name = dto.Name;
+        device.IsEnabled = dto.IsEnabled;
+        device.AdditionalProperties = dto.AdditionalProperties;
+        device.DeviceTypeId = type.Id;
+
+        await dbContext.SaveChangesAsync();
+
+        return Results.Ok("Device updated successfully.");
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem($"Update failed: {ex.Message}");
+    }
+});
+
+app.MapDelete("/api/devices/{id}", async (DeviceContext dbContext, int id) =>
+{
+    try
+    {
+        var device = await dbContext.Devices.FindAsync(id);
+        if (device == null)
+            return Results.NotFound($"Device with ID {id} not found.");
+        dbContext.Devices.Remove(device);
+        await dbContext.SaveChangesAsync();
+        return Results.Ok("Device deleted successfully.");
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest($"DELETE FAILED: {ex.Message}");
+    }
+});
+
+app.MapGet("/api/employees", async (DeviceContext dbContext) =>
+{
+    try
+    {
+        var employees = await dbContext.Employees
+            .Include(e => e.Person)
+            .Select(e => new
+            {
+                id = e.Id,
+                Name = e.Person.FirstName + " " + e.Person.MiddleName + " " + e.Person.LastName
+            })
+            .ToListAsync();
+
+        return Results.Ok(employees);
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem($"Loading employees FAILED: {ex.Message}");
+    }
+});
+
+app.MapGet("/api/employees/{id}", async (DeviceContext dbContext, int id) =>
+{
+    try
+    {
+        var employee = await dbContext.Employees
+            .Include(e => e.Person)
+            .Include(e => e.Position)
+            .FirstOrDefaultAsync(e => e.Id == id);
+        ;
+        if (employee == null)
+            return Results.NotFound($"Employee with ID {id} not found.");
+
+        var result = new
+        {
+            employee.Person.FirstName,
+            employee.Person.MiddleName,
+            employee.Person.LastName,
+            employee.Person.PassportNumber,
+            employee.Person.PhoneNumber,
+            employee.Person.Email,
+            salary = employee.Salary,
+            positionInfo = new
+            {
+                id = employee.Position.Id,
+                name = employee.Position.Name,
+            },
+            hireDate = employee.HireDate,
+        };
+        return Results.Ok(result);
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem($"Loading SPECIFIC employee FAILED: {ex.Message}");
+    }
+});
+
 app.Run();
