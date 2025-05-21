@@ -74,6 +74,7 @@ app.MapGet("/api/devices/{id}", async (DeviceContext db, int id) =>
 
         var result = new
         {
+            device.Name,
             deviceTypeName = device.DeviceType?.Name,
             isEnabled = device.IsEnabled,
             properties = additionalProps,
@@ -147,13 +148,23 @@ app.MapPut("/api/devices/{id}", async (int id, DeviceCreationAndUpdateDto dto, D
     }
 });
 
+// Since it wasn't specified, instead of deleting child rows, i decided to send an error if we try to delete a device that belongs to any employee
 app.MapDelete("/api/devices/{id}", async (DeviceContext dbContext, int id) =>
 {
     try
     {
+        var isAssigned = dbContext.DeviceEmployees
+            .Any(de => de.DeviceId == id);
+        if (isAssigned)
+        {
+            return Results.BadRequest(
+                $"Device {id} can not be deleted because it is associated with an employee.");
+        }
+
         var device = await dbContext.Devices.FindAsync(id);
         if (device == null)
             return Results.NotFound($"Device with ID {id} not found.");
+
         dbContext.Devices.Remove(device);
         await dbContext.SaveChangesAsync();
         return Results.Ok("Device deleted successfully.");
@@ -163,6 +174,7 @@ app.MapDelete("/api/devices/{id}", async (DeviceContext dbContext, int id) =>
         return Results.BadRequest($"DELETE FAILED: {ex.Message}");
     }
 });
+
 
 app.MapGet("/api/employees", async (DeviceContext dbContext) =>
 {

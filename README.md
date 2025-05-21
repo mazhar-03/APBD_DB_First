@@ -1,8 +1,15 @@
 Here's my app settings configuration:
-"ConnectionStrings": {
-    "UniversityConnection": "Server=DB-MSSQL16.pjwstk.edu.pl;Database=s31162;Trusted_Connection=True;TrustServerCertificate=True;"
-  }
+(Please ignore what I put here before :)
 
+In my configuration file there is a "ConnectionString" which holds the value for the "UniversityConnection"
+
+In that connection I have  -> 
+
+Server for server address,
+
+Database for database name (s*****)
+
+TrustedConnection and TrustServerCertificate can be true or false. In my case both are true.
 ***********
 
 I chose not to split my app into several projects. I did not want to add extra complexity or make the task harder.
