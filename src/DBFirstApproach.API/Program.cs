@@ -110,7 +110,7 @@ app.MapPost("/api/devices", async (DeviceCreationAndUpdateDto dto, DeviceContext
         await dbContext.Devices.AddAsync(newDevice);
         await dbContext.SaveChangesAsync();
 
-        return Results.Created();
+        return Results.Created($"/api/devices/{newDevice.Id}", new { Id = newDevice.Id });
     }
     catch (Exception ex)
     {
